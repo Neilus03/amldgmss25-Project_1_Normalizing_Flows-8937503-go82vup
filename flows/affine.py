@@ -34,7 +34,11 @@ class Affine(Flow):
         B, D = x.shape
 
         ##########################################################
-        # YOUR CODE HERE
+
+        scale = torch.exp(self.log_scale) # e^a (shape [D])
+        y = scale * x + self.shift # y = e^a * x + b (broadcasting over batch) 
+        log_det_jac = torch.sum(self.log_scale, dim=0)  # sum of log scales
+        log_det_jac = log_det_jac * torch.ones(B, device=x.device)  # shape [B]
 
         ##########################################################
 
@@ -57,6 +61,13 @@ class Affine(Flow):
 
         ##########################################################
         # YOUR CODE HERE
+        
+        # Task 2: Complete the inverse transformation y = e^a * x + b
+        scale = torch.exp(self.log_scale) # shape [D]
+        x = (y - self.shift) / scale # same as y * exp(-log_scale)
+        inv_log_det_jac = -torch.sum(self.log_scale) # sum of log scales
+        inv_log_det_jac = inv_log_det_jac * torch.ones(B, device=y.device)
+        
 
         ##########################################################
 
@@ -64,3 +75,16 @@ class Affine(Flow):
         assert inv_log_det_jac.shape == (B,)
 
         return x, inv_log_det_jac
+
+if __name__ == "__main__":
+    # Example usage
+    affine = Affine(dim=2)
+    x = torch.randn(5, 2)  # Batch of 5 samples, each of dimension 2
+    y, log_det_jac = affine.forward(x)
+    print("Forward transformation:")
+    print("Input:")
+    print(x)
+    print("Output:")
+    print(y)
+    print("Log determinant Jacobian:")
+    print(log_det_jac)
