@@ -56,30 +56,33 @@ class Radial(Flow):
         B, D = x.shape
 
         ##########################################################
-        # YOUR CODE HERE
 
-        # Task 3: Radial forward transformation. f(z) = z + beta * H(alpha, r) * (z - z0)
+        eps = 1e-9                                 
 
-        # Softplus to get positive values for alpha and beta
-        alpha = F.softplus(self.pre_alpha).expand(B, -1)  # alpha = softplus(pre_alpha) -> alpha > 0, shape [B, 1] -> [B, 1]
-        beta = -alpha + F.softplus(self.pre_beta).expand(B, -1)  # beta = -alpha + softplus(pre_beta), shape [B, 1] -> [B, 1]
+        # Enforce constraints explicitly via softplus
+        alpha = torch.nn.functional.softplus(self.pre_alpha)      # (1,)
+        beta  = -alpha + torch.nn.functional.softplus(self.pre_beta)  # (1,)
 
-        # Calculate r = ||x - x0||_2 (Euclidean distance between each x and z0)
-        x0 = self.x0.expand(B, -1)  # Broadcast x0 to match batch size (shape [B, D])
-        r = torch.norm(x - x0, dim=-1, keepdim=True)  # r is the distance for each sample, shape [B, 1]
+        # Expand to batch shape
+        alpha = alpha.view(1, 1).expand(B, 1)           # (B,1)
+        beta  = beta.view(1, 1).expand(B, 1)            # (B,1)
+        x0    = self.x0.view(1, D).expand(B, D)         # (B,D)
 
-        # Calculate the vector difference z = x - x0
-        z = x - x0  # shape [B, D]
+        # Core quantities
+        z_minus = x - x0                                # (B,D)
+        r = torch.norm(z_minus, dim=1, keepdim=True)    # (B,1)
+        h = 1.0 / (alpha + r)                           # (B,1)
 
-        # Normalize z to avoid scaling issues (z / r)
-        z = z / (r + 1e-8)  # Avoid division by zero, shape [B, D]
+        # Forward transform
+        bh = beta * h                                   # (B,1)
+        y = x + bh * z_minus                            # (B,D)
 
-        # Apply the transformation: y = x0 + (r ** alpha) * z + beta
-        y = x0 + (r ** alpha) * z + beta * torch.ones_like(x)  # Broadcasting over batch, shape [B, D]
+        # Log-determinant
+        term1 = 1.0 + bh                                # (B,1)
+        term2 = 1.0 + bh - beta * r / (alpha + r)**2    # (B,1)
 
-        # The log determinant of the Jacobian for this transformation is calculated as:
-        # log_det_jac = sum of log(1 + alpha / r), since it's a radial transformation
-        log_det_jac = torch.sum(torch.log(1 + alpha / (r + 1e-8)), dim=-1)  # shape [B]
+        log_det_jac = (D - 1) * torch.log(term1 + eps) + torch.log(term2 + eps) # (B,1)
+        log_det_jac = log_det_jac.squeeze(1)                                    # (B,)
 
         ##########################################################
 
