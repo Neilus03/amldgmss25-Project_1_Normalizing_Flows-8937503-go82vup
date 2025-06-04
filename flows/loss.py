@@ -1,8 +1,5 @@
 def likelihood(X_train, model, device):
     ##########################################################
-    # YOUR CODE HERE
-
-    # Task 6: Complete the functions likelihood such that it trains the model with maximum likelihood.
 
     x = X_train.to(device) #shape is [B,D]
 

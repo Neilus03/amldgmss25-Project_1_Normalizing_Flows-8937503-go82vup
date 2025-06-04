@@ -60,9 +60,7 @@ class Affine(Flow):
         B, D = y.shape
 
         ##########################################################
-        # YOUR CODE HERE
-        
-        # Task 2: Complete the inverse transformation y = e^a * x + b
+
         scale = torch.exp(self.log_scale) # shape [D]
         x = (y - self.shift) / scale # same as y * exp(-log_scale)
         inv_log_det_jac = -torch.sum(self.log_scale) # sum of log scales
